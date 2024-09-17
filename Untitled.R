@@ -30,3 +30,21 @@ g3 <- graph(c("plankton", "fish1", "plankton", "fish2",
 plot(g3, edge.arrow.size=.5, vertex.color="gold", vertex.size=15,
      vertex.frame.color="gray", vertex.label.color="black", 
      vertex.label.cex=0.8, vertex.label.dist=2, edge.curved=0.2)
+E(g3)
+V(g3)
+
+V(g3)$taxonomy <- c("diatoms", "Genus sp1", "Genus sp2", "Genus sp3")
+E(g3)$type <- "predation" # Edge attribute, assign "email" to all edges
+E(g3)$weight <- c(1,1.5,4,10, 6) 
+edge_attr(g3)
+
+vertex_attr(g3)
+g <- make_bipartite_graph(rep(0:1,length=10), c(1:10))
+g
+vertex_attr(g)
+plot(g, edge.arrow.size=.5, vertex.color="gold", vertex.size=15,
+     vertex.frame.color="gray", vertex.label.color="black", 
+     vertex.label.cex=0.8, vertex.label.dist=2, edge.curved=0.2)
+is_bipartite(g)
+plot(g, layout=layout_as_bipartite)
+
