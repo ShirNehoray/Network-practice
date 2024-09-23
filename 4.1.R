@@ -39,11 +39,3 @@ ural_data[1:4,1:4]
 
 
 
-library(network)
-library(sna)
-ggnetwork(n, layout = "fruchtermanreingold", cell.jitter = 0.75)
-ggnetwork(n, layout = "target", niter = 100)
-ggplot(n, aes(x = x, y = y, xend = xend, yend = yend)) +
-  geom_edges(aes(linetype = type), color = "grey50") +
-  theme_blank()
-
