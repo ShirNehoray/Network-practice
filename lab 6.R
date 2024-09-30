@@ -94,3 +94,5 @@ links_ll <- multilayer_kefi_ll$extended_ids %>% unite(layer_from, node_from, lay
 any(duplicated(links_mat$layer_from))
 
 setequal(links_mat$layer_from, links_ll$layer_from)
+
+ggg
