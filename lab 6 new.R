@@ -99,3 +99,98 @@ links_ll <- multilayer_kefi_ll$extended_ids %>% unite(layer_from, node_from, lay
 
 any(duplicated(links_mat$layer_from))
 setequal(links_mat$layer_from, links_ll$layer_from)
+
+# Create the ELL tibble with interlayer links.
+interlayer <- tibble(layer_from=c('pond_1','pond_1','pond_1'),
+                     node_from=c('pelican','crab','pelican'),
+                     layer_to=c('pond_2','pond_2','pond_3'), 
+                     node_to=c('pelican','crab','pelican'),
+                     weight=1)
+
+# This is a directed network so the links should go both ways, even though they are symmetric.
+interlayer_2 <- interlayer[,c(3,4,1,2,5)]
+names(interlayer_2) <- names(interlayer)
+interlayer <- rbind(interlayer, interlayer_2)
+
+# An example with layer attributes and interlayer links
+multilayer_unip_toy <- create_multilayer_network(list_of_layers = list(pond_1, pond_2, pond_3),
+                                                 interlayer_links = interlayer,
+                                                 layer_attributes = layer_attrib,
+                                                 bipartite = F,
+                                                 directed = T)
+multilayer_unip_toy$extended
+
+# Import layers
+Sierras_matrices <- NULL
+for (layer in 1:12){
+  d <- suppressMessages(read_excel('/Users/shirnehoray/GitHub/data/Gilarranz2014_Datos Sierras.xlsx', sheet = layer+2))
+  web <- data.matrix(d[,2:ncol(d)])
+  rownames(web) <- as.data.frame(d)[,1]
+  web[is.na(web)] <- 0
+  Sierras_matrices[[layer]] <- web
+}
+names(Sierras_matrices) <- excel_sheets('/Users/shirnehoray/GitHub/data/Gilarranz2014_Datos Sierras.xlsx')[3:14]
+# Layer dimensions
+sapply(Sierras_matrices, dim)
+
+layer_attrib <- tibble(layer_id=1:12, layer_name=excel_sheets('/Users/shirnehoray/GitHub/data/Gilarranz2014_Datos Sierras.xlsx')[3:14])
+
+multilayer_sierras <- create_multilayer_network(list_of_layers = Sierras_matrices, bipartite = T, directed = F, layer_attributes = layer_attrib)
+
+multilayer_sierras$extended
+
+dist <- data.matrix(read_csv('/Users/shirnehoray/GitHub/data/Gilarranz2014_distances.csv'))
+dimnames(dist) <- list(layer_attrib$layer_name, layer_attrib$layer_name)
+
+# Get the dispersal matrix, for pollinators only. This matrix shows which pollinator is in which layer
+dispersal <- multilayer_sierras$extended %>% group_by(node_from) %>% dplyr::select(layer_from) %>% table()
+dispersal <- 1*(dispersal>0)
+
+Sierras_interlayer <- NULL
+for (s in rownames(dispersal)){ # For each pollinator
+  x <- dispersal[s,]
+  locations <- names(which(x!=0)) # locations where pollinator occurs
+  if (length(locations)<2){next}
+  pairwise <- combn(locations, 2)
+  # Create interlayer edges between pairwise combinations of locations
+  for (i in 1:ncol(pairwise)){
+    a <- pairwise[1,i]
+    b <- pairwise[2,i]
+    weight <- dist[a,b] # Get the interlayer edge weight
+    Sierras_interlayer %<>% bind_rows(tibble(layer_from=a, node_from=s, layer_to=b, node_to=s, weight=weight))
+  }
+}
+
+# Re-create the multilayer object with interlayer links
+multilayer_sierras_interlayer <- create_multilayer_network(list_of_layers = Sierras_matrices, bipartite = T, directed = F, layer_attributes = layer_attrib, interlayer_links = Sierras_interlayer)
+
+# See the interlayer links
+multilayer_sierras_interlayer$extended %>% filter(layer_from!=layer_to)
+multilayer_sierras_interlayer$extended_ids %>% filter(layer_from!=layer_to)
+
+#plotting
+g <- get_igraph(multilayer = multilayer_kefi, bipartite = F, directed = T) # get a list of igraph objects using EMLN
+muxViz::plot_multiplex(g.list=g$layers_igraph, layer.colors = c('orange','blue','red'))
+
+
+
+library(muxViz)
+library(infomapecology)
+library(igraph)
+library(bipartite)
+library(tidyverse)
+library(magrittr)
+library(readxl)
+library(ggalluvial)
+
+mEdges <- as.data.frame(multilayer_kefi$extended_ids[,c(2,1,4,3,5)])
+colnames(mEdges)[1:4] <- c("node.from", "layer.from", "node.to", "layer.to")
+M <- BuildSupraAdjacencyMatrixFromExtendedEdgelist(mEdges,3,106,T)
+out_deg <- GetMultiOutDegree(M, Layers = 3, Nodes = 106, isDirected = T)
+in_deg <- GetMultiInDegree(M, Layers = 3, Nodes = 106, isDirected = T)
+tibble(out_deg, in_deg) %>% ggplot(aes(in_deg, out_deg))+geom_point()+labs(x='In degree', y='Out degree')+
+  geom_abline()+
+  xlim(0,85)+
+  ylim(0,85)+
+  coord_fixed()
+
